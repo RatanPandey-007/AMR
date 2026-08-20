@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMR-Predict | AI Antimicrobial Resistance Prediction & Explainability</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Chart.js & Plotly CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Top Clinical Disclaimer Banner -->
+    <div class="disclaimer-banner">
+        <div class="disclaimer-content">
+            <span class="disclaimer-tag">RESEARCH PROTOTYPE ONLY</span>
+            <span class="disclaimer-text">
+                This system is an educational and research prototype and is <strong>NOT</strong> a medical device or clinical decision support tool. Predictions are model-estimated resistance probabilities trained on a synthetic dataset and have <strong>NOT</strong> been clinically validated. Do not use for prescribing or treatment decisions.
+            </span>
+        </div>
+    </div>
+
+    <!-- Header / Navbar -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-wrapper">
+                <div class="brand-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-name">AMR-Predict</h1>
+                    <span class="brand-subtitle">AI-Powered Antimicrobial Resistance Prediction & Explainability</span>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="nav-tabs" role="tablist">
+                <button class="nav-tab active" data-tab="tab-patient" role="tab">
+                    <span class="tab-icon">🩺</span> Patient Analyzer
+                </button>
+                <button class="nav-tab" data-tab="tab-explain" role="tab">
+                    <span class="tab-icon">🔬</span> SHAP Explainability
+                </button>
+                <button class="nav-tab" data-tab="tab-models" role="tab">
+                    <span class="tab-icon">📊</span> Model Performance
+                </button>
+                <button class="nav-tab" data-tab="tab-eda" role="tab">
+                    <span class="tab-icon">🧬</span> Dataset Insights
+                </button>
+                <button class="nav-tab" data-tab="tab-about" role="tab">
+                    <span class="tab-icon">🛡️</span> Limitations & Roadmap
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+        <!-- ============================================================ -->
+        <!-- TAB 1: PATIENT AMR PREDICTION ANALYZER -->
+        <!-- ============================================================ -->
+        <section id="tab-patient" class="tab-pane active">
+            <div class="grid-2col">
+                <!-- Left Column: Patient Clinical Input Form -->
+                <div class="card form-card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Patient Clinical Profile</h2>
+                            <p class="card-desc">Enter demographic, laboratory, and microbiological data</p>
+                        </div>
+                        <!-- Preset Dropdown -->
+                        <div class="preset-wrapper">
+                            <label for="presetSelect" class="preset-label">Quick Presets:</label>
+                            <select id="presetSelect" class="form-select select-sm">
+                                <option value="">-- Choose Clinical Preset --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <form id="patientForm" class="patient-form">
+                        <!-- Demographics & Labs -->
+                        <div class="form-section-title">Demographics & Laboratory Markers</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="inputAge">Age (Years) <span class="req">*</span></label>
+                                <input type="number" id="inputAge" name="age" min="18" max="110" value="52" required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputSex">Biological Sex <span class="req">*</span></label>
+                                <select id="inputSex" name="sex" required class="form-select">
+                                    <option value="F" selected>Female (F)</option>
+                                    <option value="M">Male (M)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputCreatinine">Serum Creatinine (mg/dL) <span class="req">*</span></label>
+                                <input type="number" step="0.01" id="inputCreatinine" name="creatinine_mg_dl" min="0.2" max="15.0" value="1.15" required class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputWbc">WBC Count (k/µL) <span class="req">*</span></label>
+                                <input type="number" step="0.1" id="inputWbc" name="wbc_count_k_ul" min="1.0" max="60.0" value="11.4" required class="form-input">
+                            </div>
+                        </div>
+
+                        <!-- Infection & Pathogen -->
+                        <div class="form-section-title">Infection Syndrome & Isolated Pathogen</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="inputInfection">Infection Type <span class="req">*</span></label>
+                                <select id="inputInfection" name="infection_type" required class="form-select">
+                                    <option value="UTI" selected>Uncomplicated UTI</option>
+                                    <option value="Catheter_Associated_UTI">Catheter-Associated UTI (CAUTI)</option>
+                                    <option value="Complicated_UTI">Complicated UTI</option>
+                                    <option value="Pyelonephritis">Acute Pyelonephritis</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputOrganism">Isolated Pathogen <span class="req">*</span></label>
+                                <select id="inputOrganism" name="organism" required class="form-select">
+                                    <option value="E_coli" selected>Escherichia coli</option>
+                                    <option value="Klebsiella_pneumoniae">Klebsiella pneumoniae</option>
+                                    <option value="Enterococcus_faecalis">Enterococcus faecalis</option>
+                                    <option value="Proteus_mirabilis">Proteus mirabilis</option>
+                                    <option value="Pseudomonas_aeruginosa">Pseudomonas aeruginosa</option>
+                                    <option value="Staph_saprophyticus">Staphylococcus saprophyticus</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputPriorUti">Prior UTIs (Past 1 Year)</label>
+                                <input type="number" id="inputPriorUti" name="num_prior_uti_1yr" min="0" max="20" value="2" class="form-input">
+                            </div>
+                        </div>
+
+                        <!-- Clinical History & Exposures -->
+                        <div class="form-section-title">Clinical History & Exposure Flags</div>
+                        <div class="checkbox-grid">
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputHospital" name="recent_hospitalization_90d" checked>
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Hospitalization (Last 90d)</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputAbx" name="recent_antibiotic_use_90d" checked>
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Antibiotic Exposure (Last 90d)</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputResistantCulture" name="prior_resistant_culture_1yr" checked>
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Prior Resistant Culture (1yr)</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputDiabetes" name="diabetes">
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Diabetes Mellitus</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputCatheter" name="catheter_use">
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Indwelling Urinary Catheter</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputImmuno" name="immunocompromised">
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Immunocompromised</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputNursing" name="nursing_home_resident">
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Nursing Home Resident</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputTravel" name="travel_last_6mo">
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Recent Travel (6mo)</span>
+                            </label>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="inputHcw" name="healthcare_worker">
+                                <span class="checkmark"></span>
+                                <span class="cb-label">Healthcare Worker</span>
+                            </label>
+                        </div>
+
+                        <!-- Action Button -->
+                        <div class="form-actions">
+                            <button type="submit" id="btnAnalyze" class="btn btn-primary btn-glow">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                </svg>
+                                <span>Analyze AMR Risk</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right Column: Results Dashboard -->
+                <div class="card results-card">
+                    <div class="results-top-bar">
+                        <div>
+                            <h2 class="card-title">Estimated Resistance Probabilities</h2>
+                            <p class="card-desc">Evaluated across all 8 target antibiotics (Sorted by Risk)</p>
+                        </div>
+                        <div id="latencyBadge" class="latency-badge">
+                            <span class="pulse-dot"></span>
+                            <span id="latencyText">Ready for analysis</span>
+                        </div>
+                    </div>
+
+                    <!-- Non-prescribing clinical notice -->
+                    <div class="notice-box">
+                        <span class="notice-icon">ℹ️</span>
+                        <span><strong>Non-Prescriptive Output:</strong> Probabilities reflect model-estimated likelihood of non-susceptibility. Results do not constitute antimicrobial recommendations or dosage advice.</span>
+                    </div>
+
+                    <!-- Antibiotic Cards Grid -->
+                    <div id="resultsGrid" class="antibiotic-grid">
+                        <div class="empty-state">
+                            <div class="empty-icon">🔬</div>
+                            <h3>No Patient Profile Analyzed Yet</h3>
+                            <p>Select a clinical preset or enter patient values on the left and click "Analyze AMR Risk".</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- TAB 2: SHAP EXPLAINABILITY STUDIO -->
+        <!-- ============================================================ -->
+        <section id="tab-explain" class="tab-pane">
+            <div class="explainability-header card">
+                <div class="explain-controls">
+                    <div class="control-group">
+                        <label for="explainAbxSelect" class="control-label">Select Antibiotic to Explain:</label>
+                        <select id="explainAbxSelect" class="form-select">
+                            <option value="Ciprofloxacin">Ciprofloxacin</option>
+                            <option value="Levofloxacin">Levofloxacin</option>
+                            <option value="Nitrofurantoin">Nitrofurantoin</option>
+                            <option value="Trimethoprim-Sulfamethoxazole">Trimethoprim-Sulfamethoxazole</option>
+                            <option value="Amoxicillin-Clavulanate">Amoxicillin-Clavulanate</option>
+                            <option value="Ceftriaxone">Ceftriaxone</option>
+                            <option value="Gentamicin">Gentamicin</option>
+                            <option value="Fosfomycin">Fosfomycin</option>
+                        </select>
+                    </div>
+                    <div class="prediction-pill" id="explainSummaryPill">
+                        <span id="explainAbxName">Ciprofloxacin</span>
+                        <span class="pill-divider">|</span>
+                        <span id="explainProbText">--%</span>
+                        <span class="pill-badge" id="explainRiskBadge">Risk</span>
+                    </div>
+                </div>
+                <div class="model-attribution-box">
+                    <span class="attribution-icon">⚖️</span>
+                    <span><strong>Model Attribution Notice:</strong> These features contributed mathematically to the machine-learning model's probability estimate. SHAP values reflect model attribution, NOT clinical causality.</span>
+                </div>
+            </div>
+
+            <div class="grid-2col mt-4">
+                <!-- Left: Positive & Negative Contributing Factors List -->
+                <div class="card">
+                    <h3 class="card-title">Patient Feature Contributions (SHAP)</h3>
+                    <p class="card-desc">Which patient factors drove this specific prediction up or down</p>
+
+                    <div class="factor-group">
+                        <h4 class="factor-group-title factor-pos">
+                            <span class="factor-icon">▲</span> Features Increasing Resistance Risk (+SHAP)
+                        </h4>
+                        <div id="positiveFactorsList" class="factor-list">
+                            <div class="empty-text">Run patient analysis to view positive drivers.</div>
+                        </div>
+                    </div>
+
+                    <div class="factor-group mt-3">
+                        <h4 class="factor-group-title factor-neg">
+                            <span class="factor-icon">▼</span> Features Decreasing Resistance Risk (-SHAP)
+                        </h4>
+                        <div id="negativeFactorsList" class="factor-list">
+                            <div class="empty-text">Run patient analysis to view negative drivers.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Waterfall Chart & Global Importances -->
+                <div class="card">
+                    <div class="chart-header-tabs">
+                        <h3 class="card-title" id="shapChartTitle">SHAP Local Waterfall Breakdown</h3>
+                        <div class="chart-toggles">
+                            <button id="btnLocalShap" class="toggle-btn active">Patient Waterfall</button>
+                            <button id="btnGlobalShap" class="toggle-btn">Dataset Global Importance</button>
+                        </div>
+                    </div>
+                    <div id="shapChartContainer" class="chart-container-fluid">
+                        <div id="plotlyShapDiv" style="width:100%; height:420px;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- TAB 3: MODEL PERFORMANCE & BENCHMARKS -->
+        <!-- ============================================================ -->
+        <section id="tab-models" class="tab-pane">
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Multi-Model Selection & Benchmark Matrix</h2>
+                        <p class="card-desc">Antibiotic-specific Random Forest vs. XGBoost performance on test split (20%, N=4,000)</p>
+                    </div>
+                    <div class="badge badge-info">Evaluation Metric: Stratified Test Set</div>
+                </div>
+
+                <!-- Comparison Table -->
+                <div class="table-responsive">
+                    <table class="clinical-table" id="modelsTable">
+                        <thead>
+                            <tr>
+                                <th>Antibiotic</th>
+                                <th>Prevalence</th>
+                                <th>Selected Model</th>
+                                <th>ROC-AUC</th>
+                                <th>F1-Score</th>
+                                <th>Recall (Resistant)</th>
+                                <th>Precision</th>
+                                <th>Accuracy</th>
+                                <th>Brier Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelsTableBody">
+                            <tr><td colspan="9" class="text-center">Loading model benchmark data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Deep Diagnostics Grid -->
+            <div class="grid-2col mt-4">
+                <!-- ROC Curves -->
+                <div class="card">
+                    <h3 class="card-title">ROC Curves (Receiver Operating Characteristic)</h3>
+                    <p class="card-desc">True Positive Rate vs. False Positive Rate across all 8 models</p>
+                    <div class="chart-container">
+                        <canvas id="rocChartCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Calibration & Reliability Diagrams -->
+                <div class="card">
+                    <h3 class="card-title">Probability Calibration & Reliability Diagram</h3>
+                    <p class="card-desc">Observed Fraction of Positives vs. Predicted Resistance Probability</p>
+                    <div class="chart-container">
+                        <canvas id="calibChartCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- TAB 4: DATASET INSIGHTS (EDA) -->
+        <!-- ============================================================ -->
+        <section id="tab-eda" class="tab-pane">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Synthetic Cohort Exploration (EDA)</h2>
+                        <p class="card-desc">Population characteristics of 20,000 synthetic patient episodes</p>
+                    </div>
+                    <span class="badge badge-warning">Synthetic Cohort N=20,000</span>
+                </div>
+                <div class="kpi-grid" id="edaKpiGrid">
+                    <div class="kpi-card">
+                        <div class="kpi-val" id="kpiPatients">20,000</div>
+                        <div class="kpi-label">Total Patient Records</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-val" id="kpiAgeMean">56.0 yrs</div>
+                        <div class="kpi-label">Mean Patient Age</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-val" id="kpiOrganisms">6</div>
+                        <div class="kpi-label">Distinct Pathogens</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-val" id="kpiAntibiotics">8</div>
+                        <div class="kpi-label">Target Antibiotics</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2col">
+                <div class="card">
+                    <h3 class="card-title">Resistance Prevalence Across Antibiotics</h3>
+                    <p class="card-desc">Percentage of resistant isolates in the synthetic cohort</p>
+                    <div class="chart-container">
+                        <canvas id="edaResistanceChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Isolated Pathogen Distribution</h3>
+                    <p class="card-desc">Microbial species distribution in positive cultures</p>
+                    <div class="chart-container">
+                        <canvas id="edaOrganismChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2col mt-4">
+                <div class="card">
+                    <h3 class="card-title">Infection Syndromes</h3>
+                    <p class="card-desc">Clinical presentation classifications</p>
+                    <div class="chart-container">
+                        <canvas id="edaInfectionChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">Clinical Risk Factors Prevalence</h3>
+                    <p class="card-desc">Comorbidities and healthcare exposures</p>
+                    <div class="chart-container">
+                        <canvas id="edaComorbiditiesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- TAB 5: METHODOLOGY, LIMITATIONS & ROADMAP -->
+        <!-- ============================================================ -->
+        <section id="tab-about" class="tab-pane">
+            <div class="card">
+                <h2 class="card-title">System Architecture & Scientific Methodology</h2>
+                <p class="card-desc">Rigorous engineering design, anti-leakage controls, and ethical boundaries</p>
+
+                <div class="pipeline-flow mt-3">
+                    <div class="flow-step">
+                        <div class="step-num">1</div>
+                        <div class="step-title">Clinical Data Input</div>
+                        <div class="step-desc">16 patient features (Demographics, Labs, Pathogen, Exposures)</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-step">
+                        <div class="step-num">2</div>
+                        <div class="step-title">Strict Validation</div>
+                        <div class="step-desc">Zero leakage of patient_id or synthetic probability columns</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-step">
+                        <div class="step-num">3</div>
+                        <div class="step-title">OneHot Preprocessing</div>
+                        <div class="step-desc">Standardized scikit-learn ColumnTransformer</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-step">
+                        <div class="step-num">4</div>
+                        <div class="step-title">8 ML Models</div>
+                        <div class="step-desc">Antibiotic-specific Random Forest vs XGBoost</div>
+                    </div>
+                    <div class="flow-arrow">➔</div>
+                    <div class="flow-step">
+                        <div class="step-num">5</div>
+                        <div class="step-title">SHAP Explainer</div>
+                        <div class="step-desc">Local & global feature contribution decomposition</div>
+                    </div>
+                </div>
+
+                <div class="info-columns mt-4">
+                    <div class="info-block">
+                        <h4 class="info-title">🛡️ Critical Anti-Leakage Rules</h4>
+                        <ul class="info-list">
+                            <li><strong>Exclusion of Target Probabilities:</strong> All 8 <code>*_resistance_probability</code> columns were strictly purged prior to training.</li>
+                            <li><strong>Patient Identifier Protection:</strong> <code>patient_id</code> is discarded and never used as a predictive feature.</li>
+                            <li><strong>Stratified Isolation:</strong> Preprocessing and models were trained strictly on training splits without test leakage.</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-block">
+                        <h4 class="info-title">⚠️ Known Limitations</h4>
+                        <ul class="info-list">
+                            <li><strong>Synthetic Cohort:</strong> The current dataset is synthetic. Performance on real clinical AST data will differ.</li>
+                            <li><strong>Imbalanced Classes:</strong> Low-prevalence agents (e.g. Fosfomycin at 10.2%) suffer lower precision despite class weighting.</li>
+                            <li><strong>Non-Causal Attribution:</strong> SHAP values indicate associative mathematical feature weights, not biological causality.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-block mt-4">
+                    <h4 class="info-title">🚀 Future Real-World Clinical Roadmap</h4>
+                    <p class="text-muted">
+                        The modular architecture separates dataset loaders, preprocessing transformers, model registries, and explainers. When transitioning to real-world Electronic Health Record (EHR) data (e.g. MIMIC-IV or institutional AST registries), the synthetic data module can be replaced without changing backend APIs or frontend dashboards.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="footer-container">
+            <p><strong>AMR-Predict v1.0.0</strong> — AI-Powered Antimicrobial Resistance Prediction & Explainability Research Prototype.</p>
+            <p class="text-muted">Synthetic Dataset (N=20,000). Not for diagnostic, prescribing, or clinical decision use.</p>
+        </div>
+    </footer>
+
+    <!-- Custom JS -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
